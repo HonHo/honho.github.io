@@ -1,0 +1,221 @@
+# Machine Learning of Weight Lifting Exercises
+
+### Author: Hon Yung Ho
+
+## Executive Summary
+
+In this project, we analyze a set of weight lifting exercise data and come up with a predictive model using machine learning algorithm that is able to identify mistakes in weight lifting with high accuracy. 
+
+The Random Forest machine learning algorithm without Principal Component Analysis produces very high accuracy against the cross validation data set, and precisely predicts the outcomes of 20 testing observations.
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset).
+
+```{r loadPackage, include=FALSE}
+library(caret)
+library(randomForest)
+```
+
+## Data File Loadings
+
+First of all, we download both the training and testing data files, and load them to data tables.
+
+```{r loadData, echo=TRUE}
+trainLocal <- "pml-training.csv"
+trainURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testLocal <- "pml-testing.csv"
+testURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if(!file.exists(trainLocal)) {
+        download.file(trainURL, destfile = trainLocal)
+}
+if(!file.exists(testLocal)) {
+        download.file(testURL, destfile = testLocal)
+}
+
+# Also treat empty string as "NA"
+rawTrain <- read.csv(trainLocal, header = TRUE, na.strings = c("NA", ""))
+rawTest <- read.csv(testLocal, header = TRUE, na.strings = c("NA", ""))
+```
+
+## Exploratory Analyses and Data Cleaning
+
+We then preform exploratory analysis and data cleaning wherever is needed on the testing data set.
+
+```{r explore, echo=TRUE}
+dim(rawTrain)
+dim(rawTest)
+```
+
+The training data set has `r nrow(rawTrain)` rows and `r ncol(rawTrain)` columns. And the training data set has `r nrow(rawTest)` rows and `r ncol(rawTest)` columns.
+
+```{r str, echo=TRUE}
+# Display internal structure of the training data set
+str(rawTrain, list.len = 20)
+```
+
+```{r nas, echo=TRUE}
+# Get a count of the NAs in each column
+unname(colSums(is.na(rawTrain)))
+```
+
+The internal structure of training data set shows that there are columns that have NA values.
+
+A further analysis performed by getting a count of the number of NAs in each column shows that columns either have no NAs at all or 19216 NAs, which account for `r round(19216 / nrow(rawTrain) * 100, 2)`% of total observations.
+
+Therefore, it's safe to exclude these columns from further analysis as they have no significant impact to the rest of the data:
+
+```{r clean, echo=TRUE}
+# Exclude columns with NA value(s)
+isColNA <- (colSums(is.na(rawTrain)) > 0)
+```
+
+We also noticed that the first 7 columns are irrelavent to the data that we are intereted in as we focus on what sensors provided. So we can also exclude them:
+
+```{r clean2, echo=TRUE}
+# Remove the first 7 columns
+isColUnrelated <- rep(FALSE, ncol(rawTrain))
+isColUnrelated[1:7] <- TRUE
+
+# Extract the traning and validation data
+cleanedTrain <- rawTrain[, !(isColNA | isColUnrelated)]
+ncol(cleanedTrain)
+```
+
+Now we have `r ncol(cleanedTrain)` columns left for building predictive model.
+
+## Data Splitting
+
+Now we are going to split the training data into training and crosss validation sets, with the proportion of 80% and 20%, respectively:
+
+```{r partition, echo=TRUE}
+set.seed(800)
+
+# Create data partitions
+idxTrain <- createDataPartition(y = cleanedTrain$classe, p = 0.8, list = FALSE)
+# Set taining data set
+trainData <- cleanedTrain[idxTrain, ]
+dim(trainData)
+# Set CV data set
+cvData <- cleanedTrain[-idxTrain, ]
+dim(cvData)
+```
+
+Numbers of observations of training data set and cross validation data set are `r dim(trainData)[1]` and `r dim(cvData)[1]`, respectively.
+
+## Predictive Models
+
+We will compare two predictive models below: Random Forest with and without Principal Component Analysis (PCA). We will use the predictive model with higher accuracy.  
+
+### Random Forest without PCA
+
+* We use randomForest() method which implements Breiman's random forest algorithm for classification.  
+* Number of trees: 500.
+* Number of variables randomly sampled as candidates at each split: 7 (square root of number of variables).  
+
+```{r trainFit, echo=TRUE, cache=TRUE}
+# Create the Random Forest model
+rfFit <- randomForest(classe ~ ., data = trainData)
+rfFit
+```
+
+#### Cross Validation and Accuracy
+
+```{r cv, echo=TRUE}
+# Perform cross validation
+cvPred <- predict(rfFit, cvData)
+cvConf <- confusionMatrix(cvData$classe, cvPred)
+cvConf$table
+```
+
+```{r cvAccuracy, echo=TRUE}
+# Get accuracy
+cvAccuracy <- cvConf$overall["Accuracy"]
+round(cvAccuracy, 4)
+```
+
+From the confusion matrix summary above, we got accuracy of `r round(cvAccuracy, 4)` on cross validation data set.
+
+### Random Forest with PCA
+
+* We again use randomForest() method which implements Breiman's random forest algorithm for classification.  
+* Number of trees: 500.
+
+#### Preprocess
+```{r preProc, echo=TRUE}
+# Get the names of predictors
+predNames <- names(cleanedTrain)
+predIdx <- grep("^classe", predNames, invert = TRUE)
+predNames <- predNames[predIdx]
+
+# Create preProcess object
+preProc <- preProcess(trainData[, predNames], method = "pca", thresh = 0.99)
+preProc$numComp
+```
+
+PCA needed `r preProc$numComp` components to capture 99% of the variance.
+So the number of variables randomly sampled as candidates at each split will be: 6 (square root of 36).
+
+```{r trainPC, echo=TRUE}
+# Calculate PCs for training data
+trainPC <- predict(preProc, trainData[, predNames])
+dim(trainPC)
+```
+
+Number of columns of training data set with PCs is `r dim(trainPC)[2]`.
+
+```{r trainPCFit, echo=TRUE, cache=TRUE}
+# Create the Random Forest model
+rfFitPC <- randomForest(trainData$classe ~ ., data = trainPC)
+rfFitPC
+```
+
+#### Cross Validation and Accuracy
+
+```{r cvPC, echo=TRUE}
+# calculate PCs for cv data
+cvPC <- predict(preProc, cvData[, predNames])
+
+# compare results
+cvConfPC <- confusionMatrix(cvData$classe, predict(rfFitPC, cvPC))
+cvConfPC$table
+```
+
+```{r cvPCAccuracy, echo=TRUE}
+cvPCAccuracy <- cvConfPC$overall["Accuracy"]
+round(cvPCAccuracy, 4)
+```
+
+From the confusion matrix summary above, we got accuracy of `r round(cvPCAccuracy, 4)` on cross validation data set with PCs.
+
+## Model Selection
+
+### Comparison of Accuracies and Out-of-Sample Errors
+
+```{r modSelect, echo=TRUE}
+modCompare <- rbind(c(round(cvAccuracy, 4), round(1 - cvAccuracy, 4)), 
+               c(round(cvPCAccuracy, 4), round(1 - cvPCAccuracy, 4)))
+colnames(modCompare) <- c("Accuracy", "Out-of-Sample Err");
+rownames(modCompare) <- c("Without PCA", "With PCA");
+modCompare
+```
+
+The above table shows that the Random Forest model without PCA has slightly higher accuracy. Hence it is chosen as the model to perform prediction on the testing data set.
+
+## Prediction of Testing Data Set
+
+Now we predict the testing data set using the Random Forest model without PCA that we derived above:
+
+```{r preditTest, echo=TRUE}
+testPred <- predict(rfFit, rawTest)
+testPred
+```
+
+## Conclusion
+
+Among the algorithms we used against the cross validation data set, the Random Forest without Principal Component Analysis was able to produce as high accuracy as 99.69%, and precisely predict the outcomes of 20 testing observations. Such machine learning algorithm was able to identify mistakes in weight lifting with high accuracy.
+
+## References
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. [Qualitative Activity Recognition of Weight Lifting Exercises](http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201). Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
