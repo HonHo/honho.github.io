@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Honho.GitHub.io : ">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Honho.GitHub.io</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/HonHo">View on GitHub</a>
+
+          <h1 id="project_title">Honho.GitHub.io</h1>
+          <h2 id="project_tagline"></h2>
+
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="machine-learning-of-weight-lifting-exercises" class="anchor" href="#machine-learning-of-weight-lifting-exercises" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Machine Learning of Weight Lifting Exercises</h1>
+
+<h3>
+<a id="author-hon-yung-ho" class="anchor" href="#author-hon-yung-ho" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Author: Hon Yung Ho</h3>
+
+<h2>
+<a id="executive-summary" class="anchor" href="#executive-summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Executive Summary</h2>
+
+<p>In this project, we analyze a set of weight lifting exercise data and come up with a predictive model using machine learning algorithm that is able to identify mistakes in weight lifting with high accuracy. </p>
+
+<p>The Random Forest machine learning algorithm without Principal Component Analysis produces very high accuracy against the cross validation data set, and precisely predicts the outcomes of 20 testing observations.</p>
+
+<h2>
+<a id="background" class="anchor" href="#background" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Background</h2>
+
+<p>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+
+<div class="highlight highlight-source-r"><pre>library(<span class="pl-smi">caret</span>)
+library(<span class="pl-smi">randomForest</span>)</pre></div>
+
+<h2>
+<a id="data-file-loadings" class="anchor" href="#data-file-loadings" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Data File Loadings</h2>
+
+<p>First of all, we download both the training and testing data files, and load them to data tables.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">trainLocal</span> <span class="pl-k">&lt;-</span> <span class="pl-s"><span class="pl-pds">"</span>pml-training.csv<span class="pl-pds">"</span></span>
+<span class="pl-smi">trainURL</span> <span class="pl-k">&lt;-</span> <span class="pl-s"><span class="pl-pds">"</span>https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv<span class="pl-pds">"</span></span>
+<span class="pl-smi">testLocal</span> <span class="pl-k">&lt;-</span> <span class="pl-s"><span class="pl-pds">"</span>pml-testing.csv<span class="pl-pds">"</span></span>
+<span class="pl-smi">testURL</span> <span class="pl-k">&lt;-</span> <span class="pl-s"><span class="pl-pds">"</span>https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv<span class="pl-pds">"</span></span>
+
+<span class="pl-k">if</span>(<span class="pl-k">!</span>file.exists(<span class="pl-smi">trainLocal</span>)) {
+        download.file(<span class="pl-smi">trainURL</span>, <span class="pl-v">destfile</span> <span class="pl-k">=</span> <span class="pl-smi">trainLocal</span>)
+}
+<span class="pl-k">if</span>(<span class="pl-k">!</span>file.exists(<span class="pl-smi">testLocal</span>)) {
+        download.file(<span class="pl-smi">testURL</span>, <span class="pl-v">destfile</span> <span class="pl-k">=</span> <span class="pl-smi">testLocal</span>)
+}
+
+<span class="pl-c"># Also treat empty string as "NA"</span>
+<span class="pl-smi">rawTrain</span> <span class="pl-k">&lt;-</span> read.csv(<span class="pl-smi">trainLocal</span>, <span class="pl-v">header</span> <span class="pl-k">=</span> <span class="pl-c1">TRUE</span>, <span class="pl-v">na.strings</span> <span class="pl-k">=</span> c(<span class="pl-s"><span class="pl-pds">"</span>NA<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>))
+<span class="pl-smi">rawTest</span> <span class="pl-k">&lt;-</span> read.csv(<span class="pl-smi">testLocal</span>, <span class="pl-v">header</span> <span class="pl-k">=</span> <span class="pl-c1">TRUE</span>, <span class="pl-v">na.strings</span> <span class="pl-k">=</span> c(<span class="pl-s"><span class="pl-pds">"</span>NA<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>))</pre></div>
+
+<h2>
+<a id="exploratory-analyses-and-data-cleaning" class="anchor" href="#exploratory-analyses-and-data-cleaning" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Exploratory Analyses and Data Cleaning</h2>
+
+<p>We then preform exploratory analysis and data cleaning wherever is needed on the testing data set.</p>
+
+<div class="highlight highlight-source-r"><pre>dim(<span class="pl-smi">rawTrain</span>)
+dim(<span class="pl-smi">rawTest</span>)</pre></div>
+
+<p>The training data set has <code>r nrow(rawTrain)</code> rows and <code>r ncol(rawTrain)</code> columns. And the training data set has <code>r nrow(rawTest)</code> rows and <code>r ncol(rawTest)</code> columns.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Display internal structure of the training data set</span>
+str(<span class="pl-smi">rawTrain</span>, <span class="pl-v">list.len</span> <span class="pl-k">=</span> <span class="pl-c1">20</span>)</pre></div>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Get a count of the NAs in each column</span>
+unname(colSums(is.na(<span class="pl-smi">rawTrain</span>)))</pre></div>
+
+<p>The internal structure of training data set shows that there are columns that have NA values.</p>
+
+<p>A further analysis performed by getting a count of the number of NAs in each column shows that columns either have no NAs at all or 19216 NAs, which account for <code>r round(19216 / nrow(rawTrain) * 100, 2)</code>% of total observations.</p>
+
+<p>Therefore, it's safe to exclude these columns from further analysis as they have no significant impact to the rest of the data:</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Exclude columns with NA value(s)</span>
+<span class="pl-smi">isColNA</span> <span class="pl-k">&lt;-</span> (colSums(is.na(<span class="pl-smi">rawTrain</span>)) <span class="pl-k">&gt;</span> <span class="pl-c1">0</span>)</pre></div>
+
+<p>We also noticed that the first 7 columns are irrelavent to the data that we are intereted in as we focus on what sensors provided. So we can also exclude them:</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Remove the first 7 columns</span>
+<span class="pl-smi">isColUnrelated</span> <span class="pl-k">&lt;-</span> rep(<span class="pl-c1">FALSE</span>, ncol(<span class="pl-smi">rawTrain</span>))
+<span class="pl-smi">isColUnrelated</span>[<span class="pl-c1">1</span><span class="pl-k">:</span><span class="pl-c1">7</span>] <span class="pl-k">&lt;-</span> <span class="pl-c1">TRUE</span>
+
+<span class="pl-c"># Extract the traning and validation data</span>
+<span class="pl-smi">cleanedTrain</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">rawTrain</span>[, <span class="pl-k">!</span>(<span class="pl-smi">isColNA</span> <span class="pl-k">|</span> <span class="pl-smi">isColUnrelated</span>)]
+ncol(<span class="pl-smi">cleanedTrain</span>)</pre></div>
+
+<p>Now we have <code>r ncol(cleanedTrain)</code> columns left for building predictive model.</p>
+
+<h2>
+<a id="data-splitting" class="anchor" href="#data-splitting" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Data Splitting</h2>
+
+<p>Now we are going to split the training data into training and crosss validation sets, with the proportion of 80% and 20%, respectively:</p>
+
+<div class="highlight highlight-source-r"><pre>set.seed(<span class="pl-c1">800</span>)
+
+<span class="pl-c"># Create data partitions</span>
+<span class="pl-smi">idxTrain</span> <span class="pl-k">&lt;-</span> createDataPartition(<span class="pl-v">y</span> <span class="pl-k">=</span> <span class="pl-smi">cleanedTrain</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, <span class="pl-v">p</span> <span class="pl-k">=</span> <span class="pl-c1">0.8</span>, <span class="pl-v">list</span> <span class="pl-k">=</span> <span class="pl-c1">FALSE</span>)
+<span class="pl-c"># Set taining data set</span>
+<span class="pl-smi">trainData</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">cleanedTrain</span>[<span class="pl-smi">idxTrain</span>, ]
+dim(<span class="pl-smi">trainData</span>)
+<span class="pl-c"># Set CV data set</span>
+<span class="pl-smi">cvData</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">cleanedTrain</span>[<span class="pl-k">-</span><span class="pl-smi">idxTrain</span>, ]
+dim(<span class="pl-smi">cvData</span>)</pre></div>
+
+<p>Numbers of observations of training data set and cross validation data set are <code>r dim(trainData)[1]</code> and <code>r dim(cvData)[1]</code>, respectively.</p>
+
+<h2>
+<a id="predictive-models" class="anchor" href="#predictive-models" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Predictive Models</h2>
+
+<p>We will compare two predictive models below: Random Forest with and without Principal Component Analysis (PCA). We will use the predictive model with higher accuracy.  </p>
+
+<h3>
+<a id="random-forest-without-pca" class="anchor" href="#random-forest-without-pca" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Random Forest without PCA</h3>
+
+<ul>
+<li>We use randomForest() method which implements Breiman's random forest algorithm for classification.<br>
+</li>
+<li>Number of trees: 500.</li>
+<li>Number of variables randomly sampled as candidates at each split: 7 (square root of number of variables).<br>
+</li>
+</ul>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Create the Random Forest model</span>
+<span class="pl-smi">rfFit</span> <span class="pl-k">&lt;-</span> randomForest(<span class="pl-smi">classe</span> <span class="pl-k">~</span> ., <span class="pl-v">data</span> <span class="pl-k">=</span> <span class="pl-smi">trainData</span>)
+<span class="pl-smi">rfFit</span></pre></div>
+
+<h4>
+<a id="cross-validation-and-accuracy" class="anchor" href="#cross-validation-and-accuracy" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Cross Validation and Accuracy</h4>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Perform cross validation</span>
+<span class="pl-smi">cvPred</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">rfFit</span>, <span class="pl-smi">cvData</span>)
+<span class="pl-smi">cvConf</span> <span class="pl-k">&lt;-</span> confusionMatrix(<span class="pl-smi">cvData</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, <span class="pl-smi">cvPred</span>)
+<span class="pl-smi">cvConf</span><span class="pl-k">$</span><span class="pl-smi">table</span></pre></div>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Get accuracy</span>
+<span class="pl-smi">cvAccuracy</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">cvConf</span><span class="pl-k">$</span><span class="pl-smi">overall</span>[<span class="pl-s"><span class="pl-pds">"</span>Accuracy<span class="pl-pds">"</span></span>]
+round(<span class="pl-smi">cvAccuracy</span>, <span class="pl-c1">4</span>)</pre></div>
+
+<p>From the confusion matrix summary above, we got accuracy of <code>r round(cvAccuracy, 4)</code> on cross validation data set.</p>
+
+<h3>
+<a id="random-forest-with-pca" class="anchor" href="#random-forest-with-pca" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Random Forest with PCA</h3>
+
+<ul>
+<li>We again use randomForest() method which implements Breiman's random forest algorithm for classification.<br>
+</li>
+<li>Number of trees: 500.</li>
+</ul>
+
+<h4>
+<a id="preprocess" class="anchor" href="#preprocess" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Preprocess</h4>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Get the names of predictors</span>
+<span class="pl-smi">predNames</span> <span class="pl-k">&lt;-</span> names(<span class="pl-smi">cleanedTrain</span>)
+<span class="pl-smi">predIdx</span> <span class="pl-k">&lt;-</span> grep(<span class="pl-s"><span class="pl-pds">"</span>^classe<span class="pl-pds">"</span></span>, <span class="pl-smi">predNames</span>, <span class="pl-v">invert</span> <span class="pl-k">=</span> <span class="pl-c1">TRUE</span>)
+<span class="pl-smi">predNames</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">predNames</span>[<span class="pl-smi">predIdx</span>]
+
+<span class="pl-c"># Create preProcess object</span>
+<span class="pl-smi">preProc</span> <span class="pl-k">&lt;-</span> preProcess(<span class="pl-smi">trainData</span>[, <span class="pl-smi">predNames</span>], <span class="pl-v">method</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>pca<span class="pl-pds">"</span></span>, <span class="pl-v">thresh</span> <span class="pl-k">=</span> <span class="pl-c1">0.99</span>)
+<span class="pl-smi">preProc</span><span class="pl-k">$</span><span class="pl-smi">numComp</span></pre></div>
+
+<p>PCA needed <code>r preProc$numComp</code> components to capture 99% of the variance.
+So the number of variables randomly sampled as candidates at each split will be: 6 (square root of 36).</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Calculate PCs for training data</span>
+<span class="pl-smi">trainPC</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">preProc</span>, <span class="pl-smi">trainData</span>[, <span class="pl-smi">predNames</span>])
+dim(<span class="pl-smi">trainPC</span>)</pre></div>
+
+<p>Number of columns of training data set with PCs is <code>r dim(trainPC)[2]</code>.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Create the Random Forest model</span>
+<span class="pl-smi">rfFitPC</span> <span class="pl-k">&lt;-</span> randomForest(<span class="pl-smi">trainData</span><span class="pl-k">$</span><span class="pl-smi">classe</span> <span class="pl-k">~</span> ., <span class="pl-v">data</span> <span class="pl-k">=</span> <span class="pl-smi">trainPC</span>)
+<span class="pl-smi">rfFitPC</span></pre></div>
+
+<h4>
+<a id="cross-validation-and-accuracy-1" class="anchor" href="#cross-validation-and-accuracy-1" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Cross Validation and Accuracy</h4>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># calculate PCs for cv data</span>
+<span class="pl-smi">cvPC</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">preProc</span>, <span class="pl-smi">cvData</span>[, <span class="pl-smi">predNames</span>])
+
+<span class="pl-c"># compare results</span>
+<span class="pl-smi">cvConfPC</span> <span class="pl-k">&lt;-</span> confusionMatrix(<span class="pl-smi">cvData</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, predict(<span class="pl-smi">rfFitPC</span>, <span class="pl-smi">cvPC</span>))
+<span class="pl-smi">cvConfPC</span><span class="pl-k">$</span><span class="pl-smi">table</span></pre></div>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">cvPCAccuracy</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">cvConfPC</span><span class="pl-k">$</span><span class="pl-smi">overall</span>[<span class="pl-s"><span class="pl-pds">"</span>Accuracy<span class="pl-pds">"</span></span>]
+round(<span class="pl-smi">cvPCAccuracy</span>, <span class="pl-c1">4</span>)</pre></div>
+
+<p>From the confusion matrix summary above, we got accuracy of <code>r round(cvPCAccuracy, 4)</code> on cross validation data set with PCs.</p>
+
+<h2>
+<a id="model-selection" class="anchor" href="#model-selection" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Model Selection</h2>
+
+<h3>
+<a id="comparison-of-accuracies-and-out-of-sample-errors" class="anchor" href="#comparison-of-accuracies-and-out-of-sample-errors" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Comparison of Accuracies and Out-of-Sample Errors</h3>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">modCompare</span> <span class="pl-k">&lt;-</span> rbind(c(round(<span class="pl-smi">cvAccuracy</span>, <span class="pl-c1">4</span>), round(<span class="pl-c1">1</span> <span class="pl-k">-</span> <span class="pl-smi">cvAccuracy</span>, <span class="pl-c1">4</span>)), 
+               c(round(<span class="pl-smi">cvPCAccuracy</span>, <span class="pl-c1">4</span>), round(<span class="pl-c1">1</span> <span class="pl-k">-</span> <span class="pl-smi">cvPCAccuracy</span>, <span class="pl-c1">4</span>)))
+colnames(<span class="pl-smi">modCompare</span>) <span class="pl-k">&lt;-</span> c(<span class="pl-s"><span class="pl-pds">"</span>Accuracy<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>Out-of-Sample Err<span class="pl-pds">"</span></span>);
+rownames(<span class="pl-smi">modCompare</span>) <span class="pl-k">&lt;-</span> c(<span class="pl-s"><span class="pl-pds">"</span>Without PCA<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>With PCA<span class="pl-pds">"</span></span>);
+<span class="pl-smi">modCompare</span></pre></div>
+
+<p>The above table shows that the Random Forest model without PCA has slightly higher accuracy. Hence it is chosen as the model to perform prediction on the testing data set.</p>
+
+<h2>
+<a id="prediction-of-testing-data-set" class="anchor" href="#prediction-of-testing-data-set" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Prediction of Testing Data Set</h2>
+
+<p>Now we predict the testing data set using the Random Forest model without PCA that we derived above:</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">testPred</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">rfFit</span>, <span class="pl-smi">rawTest</span>)
+<span class="pl-smi">testPred</span></pre></div>
+
+<h2>
+<a id="conclusion" class="anchor" href="#conclusion" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Conclusion</h2>
+
+<p>Among the algorithms we used against the cross validation data set, the Random Forest without Principal Component Analysis was able to produce as high accuracy as 99.69%, and precisely predict the outcomes of 20 testing observations. Such machine learning algorithm was able to identify mistakes in weight lifting with high accuracy.</p>
+
+<h2>
+<a id="references" class="anchor" href="#references" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>References</h2>
+
+<p>Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. <a href="http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201">Qualitative Activity Recognition of Weight Lifting Exercises</a>. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
